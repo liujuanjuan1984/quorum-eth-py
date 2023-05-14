@@ -16,7 +16,6 @@ class RumEthChainBrowser:
     def __init__(self, contract_address=None, api_base: str = BROWSER_API_BASE):
         self.contract_address = contract_address
         self.http = HttpRequest(api_base)
-        self.api_base = api_base or BROWSER_API_BASE
         self.w3 = Web3()
 
     def _get_contract(self, action, contract_address=None):
