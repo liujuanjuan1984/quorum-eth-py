@@ -140,6 +140,7 @@ class RumERC20Instance:
     """
     https://github.com/rumsystem/rum-eth-mvm/blob/main/dapps/RumERC20/contracts/RumERC20.sol
     """
+
     def __init__(
         self, contract_address, pvtkey=None, chain: RumEthChain = None, abi=None
     ):
