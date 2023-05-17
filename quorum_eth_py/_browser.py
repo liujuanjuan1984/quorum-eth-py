@@ -37,14 +37,15 @@ class RumEthChainBrowser:
     def contract_holders(self, contract_address=None):
         data = self.get_contract_holders(contract_address)
         holders = {
-            self.w3.toChecksumAddress(i.get("address")): i.get("value", 0) for i in data
+            self.w3.to_checksum_address(i.get("address")): i.get("value", 0)
+            for i in data
         }
         return holders
 
     def is_minted(self, to_address, contract_address=None):
         holders = self.contract_holders(contract_address)
         try:
-            minted = self.w3.toChecksumAddress(to_address) in holders
+            minted = self.w3.to_checksum_address(to_address) in holders
         except ValueError as err:
             minted = to_address in holders
             logger.warning("%s is_minted error: %s", to_address, err)

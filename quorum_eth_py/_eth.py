@@ -24,28 +24,28 @@ class RumEthChain:
         self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         self.is_connected()
         self.account = self.w3.eth.account.from_key(pvtkey)
-        self.w3.eth.defaultAccount = self.account.address
+        self.w3.eth.default_account = self.account.address
         logger.info("account address: %s", self.account.address)
 
     def is_connected(self):
-        status = self.w3.isConnected()
+        status = self.w3.is_connected()
         logger.info("connected to rum-eth-chain: %s", status)
         return status
 
     def get_balance(self, address: str = None):
         """get the balance of address, default is the account address"""
         address = address or self.account.address
-        address = self.w3.toChecksumAddress(address)
-        balance_wei = self.w3.eth.getBalance(address)
-        balance = self.w3.fromWei(balance_wei, "ether")
+        address = self.w3.to_checksum_address(address)
+        balance_wei = self.w3.eth.get_balance(address)
+        balance = self.w3.from_wei(balance_wei, "ether")
         return balance
 
     def _transction(self, tx: dict):
         signed_tx = self.w3.eth.account.sign_transaction(
-            tx, private_key=self.account.privateKey
+            tx, private_key=self.account.key
         )
-        tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-        tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return tx_receipt
 
     def transfer(self, to_address: str, num):
@@ -53,18 +53,18 @@ class RumEthChain:
         # check balance of account
         if num <= 0:
             raise Exception("transfer num must be positive")
-        to_address = self.w3.toChecksumAddress(to_address)
+        to_address = self.w3.to_checksum_address(to_address)
         if self.get_balance() < num:
             raise Exception(f"balance not enough {self.get_balance()}")
         tx = {
-            "nonce": self.w3.eth.getTransactionCount(self.account.address),
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
             "to": to_address,
-            "value": self.w3.toWei(num, "ether"),
-            "gasPrice": self.w3.toWei("10", "gwei"),
+            "value": self.w3.to_wei(num, "ether"),
+            "gasPrice": self.w3.to_wei("10", "gwei"),
             "gas": 50000,
             "chainId": RUM_ETH_CHAINID,
         }
-        gas_limit = self.w3.eth.estimateGas(tx)
+        gas_limit = self.w3.eth.estimate_gas(tx)
         if gas_limit > tx["gas"]:
             tx["gas"] = gas_limit
         tx_receipt = self._transction(tx)
@@ -82,41 +82,41 @@ class RumEthChain:
         abi = abi or RumERC20_abi
         bytecode = bytecode or RumERC20_bytecode
         contract = self.w3.eth.contract(abi=abi, bytecode=bytecode)
-        cap = self.w3.toWei(total_supply, "ether")
-        minter = self.w3.toChecksumAddress(minter_address or self.account.address)
+        cap = self.w3.to_wei(total_supply, "ether")
+        minter = self.w3.to_checksum_address(minter_address or self.account.address)
 
         tx = {
             "from": self.account.address,
-            "nonce": self.w3.eth.getTransactionCount(self.account.address),
-            "gasPrice": self.w3.toWei("10", "gwei"),
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gasPrice": self.w3.to_wei("10", "gwei"),
             "gas": 50000,
             "chainId": RUM_ETH_CHAINID,
         }
         gas_limit = contract.constructor(
             cap=cap, name_=name, symbol_=symbol, minter=minter
-        ).estimateGas()
+        ).estimate_gas()
         if gas_limit > tx["gas"]:
             tx["gas"] = gas_limit
 
-        if self.get_balance() < self.w3.fromWei(tx["gas"], "ether"):
+        if self.get_balance() < self.w3.from_wei(tx["gas"], "ether"):
             raise Exception(f"not enough for gas fee {self.get_balance()}")
 
         build_tx = contract.constructor(
             cap=cap, name_=name, symbol_=symbol, minter=minter
-        ).buildTransaction(tx)
+        ).build_transaction(tx)
         tx_receipt = self._transction(build_tx)
         contract_address = tx_receipt.contractAddress
         logger.info("deploy new erc20 contract: %s", contract_address)
         return contract_address
 
     def get_trx(self, tx_id_hex: str):
-        receipt = self.w3.eth.getTransactionReceipt(tx_id_hex)
+        receipt = self.w3.eth.get_transaction_receipt(tx_id_hex)
         return receipt
 
     async def check_trx(self, tx_id_hex, times=10):
         for i in range(times):
             try:
-                receipt = self.w3.eth.getTransactionReceipt(tx_id_hex)
+                receipt = self.w3.eth.get_transaction_receipt(tx_id_hex)
             except Exception as e:
                 logger.error(e)
                 receipt = None
@@ -162,13 +162,13 @@ class RumERC20Instance:
 
     def total_supply(self):
         unit256 = self.funcs.totalSupply().call()
-        return self.w3.fromWei(unit256, "ether")
+        return self.w3.from_wei(unit256, "ether")
 
     def get_balance(self, address=None):
         address = address or self.account.address
-        address = self.w3.toChecksumAddress(address)
+        address = self.w3.to_checksum_address(address)
         unit256 = self.funcs.balanceOf(address).call()
-        return self.w3.fromWei(unit256, "ether")
+        return self.w3.from_wei(unit256, "ether")
 
     def get_rum_balance(self, address=None):
         address = address or self.account.address
@@ -176,25 +176,23 @@ class RumERC20Instance:
 
     def transfer(self, to_address, num):
         """transfter num of token to address"""
-        to_address = self.w3.toChecksumAddress(to_address)
-        amount = self.w3.toWei(num, "ether")
+        to_address = self.w3.to_checksum_address(to_address)
+        amount = self.w3.to_wei(num, "ether")
 
         options = {
             "gas": 53000,
-            "gasPrice": self.w3.toWei("1", "gwei"),
+            "gasPrice": self.w3.to_wei("1", "gwei"),
             "from": self.account.address,
-            "nonce": self.w3.eth.getTransactionCount(self.account.address),
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
         }
-        gas_limit = self.w3.eth.estimateGas(options)
+        gas_limit = self.w3.eth.estimate_gas(options)
         if gas_limit > options["gas"]:
             options["gas"] = gas_limit
 
-        tx = self.funcs.transfer(to_address, amount).buildTransaction(options)
-        signed = self.w3.eth.account.signTransaction(
-            tx, private_key=self.account.privateKey
-        )
-        tx_hash = self.w3.eth.sendRawTransaction(signed.rawTransaction)
-        tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
+        tx = self.funcs.transfer(to_address, amount).build_transaction(options)
+        signed = self.w3.eth.account.sign_transaction(tx, private_key=self.account.key)
+        tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
+        tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         tid = tx_receipt.transactionHash.hex()
         logger.info("transfer to %s is done by trx: %s", to_address, tid)
         return tid
