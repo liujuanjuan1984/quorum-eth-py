@@ -50,3 +50,16 @@ class RumEthChainBrowser:
             minted = to_address in holders
             logger.warning("%s is_minted error: %s", to_address, err)
         return minted
+
+    def get_token_list(self, address: str):
+        """get token list of address"""
+        address = self.w3.to_checksum_address(address)
+        data = self.http.get(f"?module=account&action=tokenlist&address={address}")
+        if data.get("status") != "1":
+            logger.warning("get_token_list error: %s", data)
+            return []
+        tokens = data.get("result", [])
+        for i in tokens:
+            balance = self.w3.from_wei(int(i.get("balance")), "ether")
+            i["balance2"] = float(str(balance))
+        return tokens
